@@ -31,18 +31,28 @@ func main() {
 
 	client := openai.NewClient(option.WithAPIKey(apiKey), option.WithBaseURL(baseUrl))
 	resp, err := client.Chat.Completions.New(context.Background(),
-		openai.ChatCompletionNewParams{
-			Model: "anthropic/claude-haiku-4.5",
-			Messages: []openai.ChatCompletionMessageParamUnion{
-				{
-					OfUser: &openai.ChatCompletionUserMessageParam{
-						Content: openai.ChatCompletionUserMessageParamContentUnion{
-							OfString: openai.String(prompt),
-						},
-					},
+	openai.ChatCompletionNewParams{
+		Model: "anthropic/claude-haiku-4.5",
+		Messages: []openai.ChatCompletionMessageParamUnion{
+		// ... your messages
+		},
+		Tools: []openai.ChatCompletionToolUnionParam{
+		openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+			Name:        "Read",
+			Description: openai.String("Read and return the contents of a file"),
+			Parameters: openai.FunctionParameters{
+			"type": "object",
+			"properties": map[string]any{
+				"file_path": map[string]any{
+				"type":        "string",
+				"description": "The path to the file to read",
 				},
 			},
+			"required": []string{"file_path"},
+			},
+		}),
 		},
+	},
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
