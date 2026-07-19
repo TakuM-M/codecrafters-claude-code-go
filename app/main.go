@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	var prompt string
+	prompt := "How many tools are available to you in this request? Number only."
 	flag.StringVar(&prompt, "p", "", "Prompt to send to LLM")
 	flag.Parse()
 
@@ -35,6 +35,7 @@ func main() {
 		Model: "anthropic/claude-haiku-4.5",
 		Messages: []openai.ChatCompletionMessageParamUnion{
 		// ... your messages
+
 		},
 		Tools: []openai.ChatCompletionToolUnionParam{
 		openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
