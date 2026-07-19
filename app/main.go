@@ -89,11 +89,10 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Print(fileContents)
+		fmt.Print(string(fileContents))
+	} else {
+		fmt.Print(resp.Choices[0].Message.Content)
 	}
-
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	fmt.Fprintln(os.Stderr, "Logs from your program will appear here!")
 
 	// TODO: Uncomment the line below to pass the first stage
 	fmt.Print(resp.Choices[0].Message.Content)
