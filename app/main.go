@@ -93,7 +93,4 @@ func main() {
 	} else {
 		fmt.Print(resp.Choices[0].Message.Content)
 	}
-
-	// TODO: Uncomment the line below to pass the first stage
-	fmt.Print(resp.Choices[0].Message.Content)
 }
