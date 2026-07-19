@@ -35,7 +35,10 @@ func main() {
 		Model: "anthropic/claude-haiku-4.5",
 		Messages: []openai.ChatCompletionMessageParamUnion{
 		// ... your messages
-
+		openai.ChatCompletionMessageParamUnion(openai.ChatCompletionMessageParam{
+			Role:    openai.ChatMessageRoleUser,
+			Content: openai.ChatCompletionMessageContentParam{Text: prompt},
+		}),
 		},
 		Tools: []openai.ChatCompletionToolUnionParam{
 		openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
