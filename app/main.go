@@ -96,7 +96,7 @@ func main() {
 			message = append(message, openai.ToolMessage(string(fileContents), toolCall.ID))
 
 		} else {
-			fmt.Print(resp.Choices[0].Message)
+			fmt.Print(resp.Choices[0].Message.Content)
 			break
 		}
 	}
