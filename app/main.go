@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -79,6 +80,20 @@ func main() {
 							"required": []string{"file_path", "content"},
 						},
 					}),
+					openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+						Name:        "Bash",
+						Description: openai.String("Excute a shell command"),
+						Parameters: openai.FunctionParameters{
+							"type": "object",
+							"properties": map[string]any{
+								"command": map[string]any{
+									"type":        "string",
+									"description": "The command to excute",
+								},
+								"required": []string{"command"},
+							},
+						},
+					}),
 				},
 			},
 		)
@@ -134,6 +149,27 @@ func main() {
 				// Add the file contents to the message history
 				message = append(message, resp.Choices[0].Message.ToParam())
 				message = append(message, openai.ToolMessage(string("writing complete"), toolCall.ID))
+			} else if toolCall.Function.Name == "Bash" {
+				var args struct {
+					Command string `json:"command"`
+				}
+				err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error unmarshaling tool call arguments: %v\n", err)
+					os.Exit(1)
+				}
+
+				// Do bash
+				cmd := exec.Command("bash", args.Command)
+				out, err := cmd.Output()
+
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error bash command: %v\n", err)
+					os.Exit(1)
+				}
+
+				message = append(message, resp.Choices[0].Message.ToParam())
+				message = append(message, openai.ToolMessage(string(out), toolCall.ID))
 			}
 
 		} else {
