@@ -91,18 +91,12 @@ func main() {
 				os.Exit(1)
 			}
 
-			fmt.Print(string(fileContents))
-
 			// Add the file contents to the message history
-			message = append(message, openai.ChatCompletionMessageParamUnion{
-				OfAssistant: resp.Choices[0].Message.ToParam().OfAssistant,
-			})
-			message = append(message, openai.ChatCompletionMessageParamUnion{
-				OfTool: resp.Choices[0].Message.ToParam().OfTool,
-			})
+			message = append(message, resp.Choices[0].Message.ToParam())
+			message = append(message, openai.ToolMessage(string(fileContents), toolCall.ID))
 
 		} else {
-			fmt.Print(resp.Choices[0].Message.Content)
+			fmt.Print(resp.Choices[0].Message)
 			break
 		}
 	}
