@@ -160,7 +160,7 @@ func main() {
 				}
 
 				// Do bash
-				cmd := exec.Command("bash", args.Command)
+				cmd := exec.Command("bash", "-c", args.Command)
 				out, err := cmd.Output()
 
 				if err != nil {
