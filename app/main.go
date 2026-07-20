@@ -12,6 +12,7 @@ import (
 )
 
 func main() {
+	// argument prompt
 	var prompt string
 	flag.StringVar(&prompt, "p", "", "Prompt to send to LLM")
 	flag.Parse()
@@ -19,6 +20,7 @@ func main() {
 		panic("Prompt must not be empty")
 	}
 
+	// init
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	baseUrl := os.Getenv("OPENROUTER_BASE_URL")
 	if baseUrl == "" {
@@ -27,7 +29,6 @@ func main() {
 	if apiKey == "" {
 		panic("Env variable OPENROUTER_API_KEY not found")
 	}
-
 	client := openai.NewClient(option.WithAPIKey(apiKey), option.WithBaseURL(baseUrl))
 
 	message := []openai.ChatCompletionMessageParamUnion{
@@ -60,6 +61,24 @@ func main() {
 							"required": []string{"file_path"},
 						},
 					}),
+					openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+						Name:        "Write",
+						Description: openai.String("Write content to a file"),
+						Parameters: openai.FunctionParameters{
+							"type": "object",
+							"properties": map[string]any{
+								"file_path": map[string]any{
+									"type":        "string",
+									"description": "The path of the file to write to",
+								},
+								"content": map[string]any{
+									"type":        "string",
+									"description": "The content to write to the file",
+								},
+							},
+							"required": []string{"file_path", "content"},
+						},
+					}),
 				},
 			},
 		)
@@ -75,25 +94,47 @@ func main() {
 		if len(resp.Choices[0].Message.ToolCalls) > 0 {
 			toolCall := resp.Choices[0].Message.ToolCalls[0]
 
-			var args struct {
-				FilePath string `json:"file_path"`
-			}
-			err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error unmarshaling tool call arguments: %v\n", err)
-				os.Exit(1)
-			}
+			if toolCall.Function.Name == "Read" {
+				var args struct {
+					FilePath string `json:"file_path"`
+				}
+				err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error unmarshaling tool call arguments: %v\n", err)
+					os.Exit(1)
+				}
 
-			// Read the file contents
-			fileContents, err := os.ReadFile(args.FilePath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error reading file: %v\n", err)
-				os.Exit(1)
-			}
+				// Read the file contents
+				fileContents, err := os.ReadFile(args.FilePath)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error reading file: %v\n", err)
+					os.Exit(1)
+				}
 
-			// Add the file contents to the message history
-			message = append(message, resp.Choices[0].Message.ToParam())
-			message = append(message, openai.ToolMessage(string(fileContents), toolCall.ID))
+				// Add the file contents to the message history
+				message = append(message, resp.Choices[0].Message.ToParam())
+				message = append(message, openai.ToolMessage(string(fileContents), toolCall.ID))
+			} else if toolCall.Function.Name == "Write" {
+				var args struct {
+					FilePath string `json:"file_path"`
+					Content  string `json:"content"`
+				}
+				err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error unmarshaling tool call arguments: %v\n", err)
+					os.Exit(1)
+				}
+
+				// Write the file
+				err = os.WriteFile(args.FilePath, []byte(args.Content), 0666)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error writing file: %v\n", err)
+					os.Exit(1)
+				}
+				// Add the file contents to the message history
+				message = append(message, resp.Choices[0].Message.ToParam())
+				message = append(message, openai.ToolMessage(string("writing complete"), toolCall.ID))
+			}
 
 		} else {
 			fmt.Print(resp.Choices[0].Message.Content)
