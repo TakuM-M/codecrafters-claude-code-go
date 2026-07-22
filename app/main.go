@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -110,66 +108,30 @@ func main() {
 			toolCall := resp.Choices[0].Message.ToolCalls[0]
 
 			if toolCall.Function.Name == "Read" {
-				var args struct {
-					FilePath string `json:"file_path"`
-				}
-				err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
+				result, err := executeRead(toolCall.Function.Arguments)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "error unmarshaling tool call arguments: %v\n", err)
 					os.Exit(1)
 				}
-
-				// Read the file contents
-				fileContents, err := os.ReadFile(args.FilePath)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "error reading file: %v\n", err)
-					os.Exit(1)
-				}
-
-				// Add the file contents to the message history
 				message = append(message, resp.Choices[0].Message.ToParam())
-				message = append(message, openai.ToolMessage(string(fileContents), toolCall.ID))
+				message = append(message, openai.ToolMessage(result, toolCall.ID))
+
 			} else if toolCall.Function.Name == "Write" {
-				var args struct {
-					FilePath string `json:"file_path"`
-					Content  string `json:"content"`
-				}
-				err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
+				err := executeWrite(toolCall.Function.Arguments)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "error unmarshaling tool call arguments: %v\n", err)
 					os.Exit(1)
 				}
-
-				// Write the file
-				err = os.WriteFile(args.FilePath, []byte(args.Content), 0666)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "error writing file: %v\n", err)
-					os.Exit(1)
-				}
-				// Add the file contents to the message history
 				message = append(message, resp.Choices[0].Message.ToParam())
 				message = append(message, openai.ToolMessage(string("writing complete"), toolCall.ID))
 			} else if toolCall.Function.Name == "Bash" {
-				var args struct {
-					Command string `json:"command"`
-				}
-				err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
+				result, err := executeBash(toolCall.Function.Arguments)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "error unmarshaling tool call arguments: %v\n", err)
 					os.Exit(1)
 				}
-
-				// Do bash
-				cmd := exec.Command("bash", "-c", args.Command)
-				out, err := cmd.Output()
-
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "error bash command: %v\n", err)
-					os.Exit(1)
-				}
-
 				message = append(message, resp.Choices[0].Message.ToParam())
-				message = append(message, openai.ToolMessage(string(out), toolCall.ID))
+				message = append(message, openai.ToolMessage(result, toolCall.ID))
 			}
 
 		} else {
